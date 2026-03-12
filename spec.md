@@ -1,38 +1,41 @@
 # Digital Marketing Mantra
 
 ## Current State
-New project — no existing code.
+A full premium dark agency website with 13 sections: Hero, Clients marquee, Services, Case Studies, Results counters, Process timeline, Testimonials slider, Pricing, Lead Capture, Contact. All forms go to WhatsApp. Phone number visible in navbar and mobile menu.
 
 ## Requested Changes (Diff)
 
 ### Add
-- Full single-page marketing website for Digital Marketing Mantra agency
-- Hero section with animated background, floating elements, headline + 2 CTAs
-- Scrolling client logos ticker
-- Services section with 7 animated interactive cards
-- Case studies section with results and hover effects
-- Animated counters results section (50k leads, 200 campaigns, 120 clients, 10x ROI)
-- Process timeline (5 steps)
-- Testimonials animated slider
-- 3-tier pricing section
-- Lead generation CTA section with lead capture form
-- Contact section with form and Google Maps embed
-- Floating WhatsApp button
-- Sticky "Book Consultation" CTA button
-- Backend: store lead form submissions and contact form submissions
+- **Custom cursor** with a trailing dot/circle that follows mouse movement
+- **Page load animation** — logo/title fade in with stagger on first load
+- **Scroll reveal animations** — every section heading, paragraph, and card fades/slides up when entering viewport (using IntersectionObserver)
+- **Split text animation** — hero headline reveals word-by-word or char-by-char on load
+- **Parallax** — hero background and floating elements move at different speeds on scroll
+- **Magnetic buttons** — CTA buttons subtly shift toward the cursor on hover
+- **Infinite horizontal marquee rows** — services/logos ticker scrolling left and right continuously
+- **Counter animation** — numbers count up when the results section scrolls into view (already may exist, enhance if needed)
+- **Accordion expand animation** — smooth height expand for any FAQ or process steps
+- **Hover reveal on service cards** — background image or color slides in on hover
+- **Sticky header** — navbar shrinks/changes style on scroll
+- **Section number/tag badge animations** — fade in from left on scroll
+- **Smooth scroll** behavior site-wide
 
 ### Modify
-N/A
+- Enhance existing sections to use scroll-triggered reveal classes
+- Enhance hero section with staggered word-by-word title animation
+- Enhance testimonials with auto-scroll marquee (two rows going in opposite directions)
 
 ### Remove
-N/A
+- Nothing to remove
 
 ## Implementation Plan
-1. Motoko backend: `submitLead(name, email, phone, business)` and `submitContact(name, email, message)` functions, plus admin query for submissions
-2. Frontend: single-page React app with all sections
-3. Animations via CSS keyframes + Intersection Observer for scroll reveals
-4. Animated counters using useEffect + requestAnimationFrame
-5. Testimonial slider with auto-play
-6. Floating WhatsApp button (links to wa.me)
-7. Sticky consultation button
-8. Fully responsive with mobile navigation
+1. Add a `useScrollReveal` hook using IntersectionObserver that adds `animate-in` class to elements
+2. Add CSS keyframes and animation classes in index.css: fadeInUp, slideInLeft, slideInRight, scaleIn, stagger delays
+3. Add custom cursor component with trailing circle
+4. Add split text animation to hero heading using letter/word spans
+5. Add magnetic button effect to primary CTAs using mouse event listeners
+6. Enhance client logos section with CSS marquee animation (two rows)
+7. Add parallax effect to hero section using scroll event
+8. Add smooth scroll behavior and sticky header scroll shrink effect
+9. Wire all section headings, cards, and content blocks with scroll reveal classes
+10. Validate and build

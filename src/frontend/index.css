@@ -78,6 +78,12 @@
   body {
     @apply bg-background text-foreground font-body antialiased;
     overflow-x: hidden;
+    cursor: none;
+  }
+
+  /* Hide default cursor on interactive elements too */
+  a, button, input, textarea, select, [role="button"] {
+    cursor: none;
   }
 
   ::selection {
@@ -127,6 +133,11 @@
 @keyframes marquee {
   0% { transform: translateX(0); }
   100% { transform: translateX(-50%); }
+}
+
+@keyframes marquee-reverse {
+  0% { transform: translateX(-50%); }
+  100% { transform: translateX(0); }
 }
 
 @keyframes fadeInUp {
@@ -207,6 +218,26 @@
   50% { opacity: 0.7; transform: scale(1.1); }
 }
 
+/* Word reveal animation for hero split text */
+@keyframes wordReveal {
+  from {
+    opacity: 0;
+    transform: translateY(60px) rotateX(-20deg);
+    filter: blur(4px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0) rotateX(0deg);
+    filter: blur(0px);
+  }
+}
+
+/* Custom cursor ring expand */
+@keyframes cursorRingExpand {
+  0% { transform: scale(1); opacity: 1; }
+  100% { transform: scale(2.5); opacity: 0; }
+}
+
 /* ─── Utility Classes ─── */
 
 .animate-float {
@@ -224,6 +255,10 @@
 
 .animate-marquee {
   animation: marquee 30s linear infinite;
+}
+
+.animate-marquee-reverse {
+  animation: marquee-reverse 28s linear infinite;
 }
 
 .animate-pulse-glow {
@@ -247,6 +282,64 @@
   );
   background-size: 200% auto;
   animation: shimmer 3s linear infinite;
+}
+
+/* ─── Custom Cursor ─── */
+
+.custom-cursor-dot {
+  position: fixed;
+  pointer-events: none;
+  z-index: 99999;
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  background: oklch(0.75 0.22 262);
+  transform: translate(-50%, -50%);
+  transition: transform 0.08s ease, width 0.2s ease, height 0.2s ease, background 0.2s ease;
+  will-change: transform, left, top;
+  mix-blend-mode: screen;
+}
+
+.custom-cursor-ring {
+  position: fixed;
+  pointer-events: none;
+  z-index: 99998;
+  width: 40px;
+  height: 40px;
+  border-radius: 50%;
+  border: 1.5px solid oklch(0.65 0.25 262 / 0.6);
+  transform: translate(-50%, -50%);
+  transition: left 0.12s cubic-bezier(0.25, 0.46, 0.45, 0.94),
+              top 0.12s cubic-bezier(0.25, 0.46, 0.45, 0.94),
+              width 0.25s ease, height 0.25s ease,
+              border-color 0.25s ease, opacity 0.25s ease;
+  will-change: left, top;
+}
+
+.custom-cursor-ring.is-hovering {
+  width: 60px;
+  height: 60px;
+  border-color: oklch(0.75 0.22 262 / 0.8);
+  background: oklch(0.65 0.25 262 / 0.06);
+}
+
+@media (max-width: 768px) {
+  .custom-cursor-dot,
+  .custom-cursor-ring {
+    display: none;
+  }
+
+  body, a, button, input, textarea, select, [role="button"] {
+    cursor: auto;
+  }
+}
+
+/* ─── Split Text Hero ─── */
+
+.word-reveal {
+  display: inline-block;
+  opacity: 0;
+  animation: wordReveal 0.7s cubic-bezier(0.16, 1, 0.3, 1) forwards;
 }
 
 /* ─── Scroll Reveal ─── */
@@ -313,6 +406,35 @@
   border-color: oklch(0.65 0.25 262 / 0.5);
 }
 
+/* ─── Service Card Glow on Hover ─── */
+
+.service-card {
+  position: relative;
+  overflow: hidden;
+}
+
+.service-card::after {
+  content: "";
+  position: absolute;
+  inset: 0;
+  border-radius: inherit;
+  opacity: 0;
+  transition: opacity 0.4s ease;
+  background: radial-gradient(circle at 50% 0%, oklch(0.65 0.25 262 / 0.12) 0%, transparent 70%);
+}
+
+.service-card:hover::after {
+  opacity: 1;
+}
+
+.service-card:hover {
+  transform: translateY(-10px) scale(1.02);
+  box-shadow: 0 20px 60px oklch(0.65 0.25 262 / 0.25),
+              0 0 0 1px oklch(0.65 0.25 262 / 0.4),
+              0 0 40px oklch(0.65 0.25 262 / 0.1) inset;
+  border-color: oklch(0.65 0.25 262 / 0.6);
+}
+
 /* ─── Neon Buttons ─── */
 
 .btn-neon {
@@ -322,6 +444,7 @@
   border: none;
   overflow: hidden;
   transition: transform 0.2s ease, box-shadow 0.2s ease;
+  will-change: transform;
 }
 
 .btn-neon::before {
@@ -359,6 +482,13 @@
   border-color: oklch(0.65 0.25 262 / 0.7);
   background: oklch(0.65 0.25 262 / 0.08);
   box-shadow: 0 4px 20px oklch(0.65 0.25 262 / 0.15);
+}
+
+/* ─── Magnetic Button Wrapper ─── */
+.magnetic-btn {
+  display: inline-block;
+  will-change: transform;
+  transition: transform 0.3s cubic-bezier(0.25, 0.46, 0.45, 0.94);
 }
 
 /* ─── Section Label ─── */
@@ -480,4 +610,14 @@
   border-radius: 12px;
   overflow: hidden;
   filter: grayscale(0.3) brightness(0.8) saturate(1.2);
+}
+
+/* ─── Navbar shrink ─── */
+
+.navbar-shrunk {
+  box-shadow: 0 4px 30px oklch(0.05 0.01 265 / 0.8);
+}
+
+.navbar-shrunk .nav-inner {
+  height: 56px !important;
 }

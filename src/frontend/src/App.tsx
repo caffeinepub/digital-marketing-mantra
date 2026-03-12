@@ -22,12 +22,119 @@ import {
   X,
   Zap,
 } from "lucide-react";
-import { useEffect, useRef, useState } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 import { SiFacebook, SiInstagram, SiLinkedin, SiX } from "react-icons/si";
 import { useActor } from "./hooks/useActor";
 import { useCountUp, useInView } from "./hooks/useInView";
 
-// ─── Reveal wrapper ───────────────────────────────────────────────────────────
+// ─── Custom Cursor ──────────────────────────────────────────────────────────────────────────────────
+
+function CustomCursor() {
+  const dotRef = useRef<HTMLDivElement>(null);
+  const ringRef = useRef<HTMLDivElement>(null);
+  const pos = useRef({ x: -100, y: -100 });
+  const ringPos = useRef({ x: -100, y: -100 });
+  const rafRef = useRef<number>(0);
+
+  useEffect(() => {
+    const onMove = (e: MouseEvent) => {
+      pos.current = { x: e.clientX, y: e.clientY };
+      if (dotRef.current) {
+        dotRef.current.style.left = `${e.clientX}px`;
+        dotRef.current.style.top = `${e.clientY}px`;
+      }
+    };
+
+    const animate = () => {
+      ringPos.current.x += (pos.current.x - ringPos.current.x) * 0.12;
+      ringPos.current.y += (pos.current.y - ringPos.current.y) * 0.12;
+      if (ringRef.current) {
+        ringRef.current.style.left = `${ringPos.current.x}px`;
+        ringRef.current.style.top = `${ringPos.current.y}px`;
+      }
+      rafRef.current = requestAnimationFrame(animate);
+    };
+
+    const onEnter = (e: MouseEvent) => {
+      const t = e.target as HTMLElement;
+      if (
+        t.closest("a, button, [role='button'], input, textarea, select, label")
+      ) {
+        ringRef.current?.classList.add("is-hovering");
+      }
+    };
+
+    const onLeave = () => {
+      ringRef.current?.classList.remove("is-hovering");
+    };
+
+    window.addEventListener("mousemove", onMove, { passive: true });
+    document.addEventListener("mouseover", onEnter);
+    document.addEventListener("mouseout", onLeave);
+    rafRef.current = requestAnimationFrame(animate);
+
+    return () => {
+      window.removeEventListener("mousemove", onMove);
+      document.removeEventListener("mouseover", onEnter);
+      document.removeEventListener("mouseout", onLeave);
+      cancelAnimationFrame(rafRef.current);
+    };
+  }, []);
+
+  return (
+    <>
+      <div ref={dotRef} className="custom-cursor-dot" />
+      <div ref={ringRef} className="custom-cursor-ring" />
+    </>
+  );
+}
+
+// ─── Magnetic Button ───────────────────────────────────────────────────────────────────────────
+
+function MagneticBtn({
+  children,
+  className = "",
+  strength = 10,
+}: {
+  children: React.ReactNode;
+  className?: string;
+  strength?: number;
+}) {
+  const ref = useRef<HTMLDivElement>(null);
+
+  const onMouseMove = useCallback(
+    (e: React.MouseEvent<HTMLDivElement>) => {
+      const el = ref.current;
+      if (!el) return;
+      const rect = el.getBoundingClientRect();
+      const cx = rect.left + rect.width / 2;
+      const cy = rect.top + rect.height / 2;
+      const dx = ((e.clientX - cx) / (rect.width / 2)) * strength;
+      const dy = ((e.clientY - cy) / (rect.height / 2)) * strength;
+      el.style.transform = `translate(${dx}px, ${dy}px)`;
+    },
+    [strength],
+  );
+
+  const onMouseLeave = useCallback(() => {
+    if (ref.current) {
+      ref.current.style.transform = "translate(0, 0)";
+    }
+  }, []);
+
+  return (
+    <div
+      ref={ref}
+      className={`magnetic-btn ${className}`}
+      onMouseMove={onMouseMove}
+      onMouseLeave={onMouseLeave}
+    >
+      {children}
+    </div>
+  );
+}
+
+// ─── Reveal wrapper ─────────────────────────────────────────────────────────────────────────
 
 function Reveal({
   children,
@@ -58,14 +165,14 @@ function Reveal({
   );
 }
 
-// ─── Navbar ───────────────────────────────────────────────────────────────────
+// ─── Navbar ──────────────────────────────────────────────────────────────────────────────────
 
 function Navbar() {
   const [scrolled, setScrolled] = useState(false);
   const [menuOpen, setMenuOpen] = useState(false);
 
   useEffect(() => {
-    const onScroll = () => setScrolled(window.scrollY > 40);
+    const onScroll = () => setScrolled(window.scrollY > 80);
     window.addEventListener("scroll", onScroll, { passive: true });
     return () => window.removeEventListener("scroll", onScroll);
   }, []);
@@ -83,11 +190,14 @@ function Navbar() {
       data-ocid="nav.panel"
       className={`fixed top-0 left-0 right-0 z-50 transition-all duration-500 ${
         scrolled
-          ? "bg-background/90 backdrop-blur-xl border-b border-border shadow-glass"
+          ? "bg-background/90 backdrop-blur-xl border-b border-border shadow-glass navbar-shrunk"
           : "bg-transparent"
       }`}
     >
-      <div className="container mx-auto px-6 flex items-center justify-between h-20">
+      <div
+        className="nav-inner container mx-auto px-6 flex items-center justify-between transition-all duration-500"
+        style={{ height: scrolled ? "56px" : "80px" }}
+      >
         {/* Logo */}
         <a href="#hero" className="flex items-center gap-2 group">
           <div
@@ -123,12 +233,22 @@ function Navbar() {
         {/* CTA */}
         <div className="hidden lg:flex items-center gap-4">
           <a
-            href="#contact"
-            data-ocid="nav.primary_button"
-            className="btn-neon px-5 py-2.5 rounded-lg text-sm font-semibold text-white"
+            href="tel:+917217001969"
+            data-ocid="nav.link"
+            className="flex items-center gap-1.5 text-sm font-medium text-muted-foreground hover:text-foreground transition-colors"
           >
-            <span>Book Consultation</span>
+            <Phone className="w-4 h-4" />
+            +91 72170 01969
           </a>
+          <MagneticBtn>
+            <a
+              href="#contact"
+              data-ocid="nav.primary_button"
+              className="btn-neon px-5 py-2.5 rounded-lg text-sm font-semibold text-white block"
+            >
+              <span>Book Consultation</span>
+            </a>
+          </MagneticBtn>
         </div>
 
         {/* Hamburger */}
@@ -157,6 +277,12 @@ function Navbar() {
               </a>
             ))}
             <a
+              href="tel:+917217001969"
+              className="flex items-center gap-2 py-2 text-primary font-semibold border-b border-border/50"
+            >
+              <span>📞 +91 7217001969</span>
+            </a>
+            <a
               href="#contact"
               className="btn-neon px-5 py-3 rounded-lg text-sm font-semibold text-white text-center mt-2"
             >
@@ -169,17 +295,81 @@ function Navbar() {
   );
 }
 
-// ─── Hero ─────────────────────────────────────────────────────────────────────
+// ─── Hero ──────────────────────────────────────────────────────────────────────────────────
+
+function SplitHeadline() {
+  // Split headline into segments for stagger animation
+  const line1 = "Scaling Businesses with";
+  const line2Words = ["Advanced", "Digital"];
+  const line3 = "Marketing";
+
+  const words1 = line1.split(" ");
+
+  return (
+    <h1
+      className="font-display font-black leading-[1.05] tracking-tight mb-6"
+      style={{ fontSize: "clamp(2.5rem, 7vw, 5.5rem)" }}
+    >
+      <span className="block overflow-hidden">
+        {words1.map((word, i) => (
+          <span
+            key={word}
+            className="word-reveal inline-block mr-[0.25em]"
+            style={{ animationDelay: `${0.2 + i * 0.08}s` }}
+          >
+            {word}
+          </span>
+        ))}
+      </span>
+      <span className="block overflow-hidden">
+        {line2Words.map((word, i) => (
+          <span
+            key={word}
+            className="word-reveal gradient-text inline-block mr-[0.25em]"
+            style={{ animationDelay: `${0.5 + i * 0.1}s` }}
+          >
+            {word}
+          </span>
+        ))}
+      </span>
+      <span className="block overflow-hidden">
+        <span
+          className="word-reveal gradient-text inline-block"
+          style={{ animationDelay: "0.75s" }}
+        >
+          {line3}
+        </span>
+      </span>
+    </h1>
+  );
+}
 
 function Hero() {
+  const bgRef = useRef<HTMLDivElement>(null);
+
+  useEffect(() => {
+    const onScroll = () => {
+      if (bgRef.current) {
+        const y = window.scrollY * 0.3;
+        bgRef.current.style.transform = `translateY(${y}px)`;
+      }
+    };
+    window.addEventListener("scroll", onScroll, { passive: true });
+    return () => window.removeEventListener("scroll", onScroll);
+  }, []);
+
   return (
     <section
       id="hero"
       data-ocid="hero.section"
       className="relative min-h-screen flex items-center overflow-hidden hero-mesh"
     >
-      {/* Floating orbs */}
-      <div className="absolute inset-0 pointer-events-none overflow-hidden">
+      {/* Parallax background layer */}
+      <div
+        ref={bgRef}
+        className="absolute inset-0 pointer-events-none overflow-hidden will-change-transform"
+        style={{ top: "-20%", height: "140%" }}
+      >
         <div
           className="absolute w-96 h-96 rounded-full animate-float-slow"
           style={{
@@ -219,7 +409,7 @@ function Hero() {
             backgroundSize: "80px 80px",
           }}
         />
-        {/* Floating geometric shapes */}
+        {/* Floating dots */}
         <div
           className="absolute w-3 h-3 rounded-full animate-float"
           style={{
@@ -250,7 +440,7 @@ function Hero() {
             animationDelay: "2.5s",
           }}
         />
-        {/* Rotating ring */}
+        {/* Rotating rings */}
         <div
           className="absolute w-48 h-48 rounded-full animate-rotate-slow"
           style={{
@@ -274,33 +464,27 @@ function Hero() {
         <div className="max-w-4xl mx-auto text-center">
           {/* Label */}
           <div className="flex justify-center mb-8">
-            <div className="section-label" style={{ animationDelay: "0.1s" }}>
+            <div
+              className="section-label"
+              style={{
+                animation:
+                  "fadeInUp 0.6s cubic-bezier(0.16, 1, 0.3, 1) 0.1s both",
+              }}
+            >
               <span className="w-1.5 h-1.5 rounded-full bg-primary inline-block" />
               Performance Marketing Agency
             </div>
           </div>
 
-          {/* Headline */}
-          <h1
-            className="font-display font-black leading-[1.05] tracking-tight mb-6"
-            style={{
-              fontSize: "clamp(2.5rem, 7vw, 5.5rem)",
-              animation:
-                "fadeInUp 0.8s cubic-bezier(0.16, 1, 0.3, 1) 0.2s both",
-            }}
-          >
-            Scaling Businesses with{" "}
-            <span className="gradient-text">Advanced Digital</span>
-            <br />
-            <span className="gradient-text">Marketing</span>
-          </h1>
+          {/* Split text headline */}
+          <SplitHeadline />
 
           {/* Subheadline */}
           <p
             className="text-lg md:text-xl text-muted-foreground max-w-2xl mx-auto mb-10 leading-relaxed"
             style={{
               animation:
-                "fadeInUp 0.8s cubic-bezier(0.16, 1, 0.3, 1) 0.4s both",
+                "fadeInUp 0.8s cubic-bezier(0.16, 1, 0.3, 1) 0.9s both",
             }}
           >
             We help brands generate high-quality leads, increase conversions,
@@ -312,24 +496,28 @@ function Hero() {
             className="flex flex-col sm:flex-row gap-4 justify-center"
             style={{
               animation:
-                "fadeInUp 0.8s cubic-bezier(0.16, 1, 0.3, 1) 0.6s both",
+                "fadeInUp 0.8s cubic-bezier(0.16, 1, 0.3, 1) 1.1s both",
             }}
           >
-            <a
-              href="#lead"
-              data-ocid="hero.primary_button"
-              className="btn-neon px-8 py-4 rounded-xl text-base font-bold text-white flex items-center justify-center gap-2 group"
-            >
-              <span>Get Free Strategy Call</span>
-              <ArrowRight className="w-4 h-4 group-hover:translate-x-1 transition-transform" />
-            </a>
-            <a
-              href="#case-studies"
-              data-ocid="hero.secondary_button"
-              className="btn-ghost px-8 py-4 rounded-xl text-base font-bold flex items-center justify-center gap-2"
-            >
-              View Case Studies
-            </a>
+            <MagneticBtn strength={12}>
+              <a
+                href="#lead"
+                data-ocid="hero.primary_button"
+                className="btn-neon px-8 py-4 rounded-xl text-base font-bold text-white flex items-center justify-center gap-2 group"
+              >
+                <span>Get Free Strategy Call</span>
+                <ArrowRight className="w-4 h-4 group-hover:translate-x-1 transition-transform" />
+              </a>
+            </MagneticBtn>
+            <MagneticBtn strength={8}>
+              <a
+                href="#case-studies"
+                data-ocid="hero.secondary_button"
+                className="btn-ghost px-8 py-4 rounded-xl text-base font-bold flex items-center justify-center gap-2"
+              >
+                View Case Studies
+              </a>
+            </MagneticBtn>
           </div>
 
           {/* Trust indicators */}
@@ -337,7 +525,7 @@ function Hero() {
             className="flex flex-wrap gap-6 justify-center mt-14 text-sm text-muted-foreground"
             style={{
               animation:
-                "fadeInUp 0.8s cubic-bezier(0.16, 1, 0.3, 1) 0.8s both",
+                "fadeInUp 0.8s cubic-bezier(0.16, 1, 0.3, 1) 1.3s both",
             }}
           >
             {[
@@ -366,10 +554,10 @@ function Hero() {
   );
 }
 
-// ─── Clients Ticker ───────────────────────────────────────────────────────────
+// ─── Clients Ticker (dual-row marquee) ─────────────────────────────────────────────────────
 
 function ClientsTicker() {
-  const clients = [
+  const row1 = [
     "TechCorp",
     "RealtyPro",
     "GrowthX",
@@ -381,39 +569,83 @@ function ClientsTicker() {
     "ClearPath",
     "ImpactZone",
   ];
+  const row2 = [
+    "BoldMedia",
+    "ShiftCo",
+    "ApexDigital",
+    "TrueReach",
+    "PeakMark",
+    "NovaStudio",
+    "CoreBrand",
+    "PrimeScale",
+    "ZenithHQ",
+    "LaunchPad",
+  ];
+
+  const tickerStyle = {
+    color: "oklch(0.40 0.05 265)",
+  };
 
   return (
     <section
       data-ocid="clients.section"
-      className="py-12 border-y border-border overflow-hidden relative"
+      className="py-10 border-y border-border overflow-hidden relative"
     >
-      <div className="absolute inset-0 pointer-events-none">
+      <div className="absolute inset-0 pointer-events-none z-10">
         <div
-          className="absolute inset-y-0 left-0 w-32 z-10"
+          className="absolute inset-y-0 left-0 w-32"
           style={{
             background:
               "linear-gradient(to right, oklch(0.09 0.015 265), transparent)",
           }}
         />
         <div
-          className="absolute inset-y-0 right-0 w-32 z-10"
+          className="absolute inset-y-0 right-0 w-32"
           style={{
             background:
               "linear-gradient(to left, oklch(0.09 0.015 265), transparent)",
           }}
         />
       </div>
-      <div className="flex" style={{ width: "max-content" }}>
-        <div className="flex gap-16 animate-marquee">
+
+      {/* Row 1 — goes left */}
+      <div className="flex mb-4" style={{ width: "max-content" }}>
+        <div className="flex gap-14 animate-marquee">
           {[
-            ...clients.map((c, j) => ({ name: c, id: `a-${j}` })),
-            ...clients.map((c, j) => ({ name: c, id: `b-${j}` })),
+            ...row1.map((c, j) => ({ name: c, id: `r1a-${j}` })),
+            ...row1.map((c, j) => ({ name: c, id: `r1b-${j}` })),
           ].map((item) => (
             <span
               key={item.id}
-              className="font-display font-bold text-xl whitespace-nowrap"
-              style={{ color: "oklch(0.40 0.05 265)" }}
+              className="font-display font-bold text-xl whitespace-nowrap flex items-center gap-3"
+              style={tickerStyle}
             >
+              <span
+                className="w-1.5 h-1.5 rounded-full inline-block"
+                style={{ background: "oklch(0.45 0.12 262)" }}
+              />
+              {item.name}
+            </span>
+          ))}
+        </div>
+      </div>
+
+      {/* Row 2 — goes right (reverse) */}
+      <div className="flex" style={{ width: "max-content" }}>
+        <div className="flex gap-14 animate-marquee-reverse">
+          {[
+            ...row2.map((c, j) => ({ name: c, id: `r2a-${j}` })),
+            ...row2.map((c, j) => ({ name: c, id: `r2b-${j}` })),
+          ].map((item) => (
+            <span
+              key={item.id}
+              className="font-display font-bold text-xl whitespace-nowrap flex items-center gap-3"
+              style={tickerStyle}
+            >
+              <span
+                className="w-1.5 h-1.5 rounded-full inline-block"
+                style={{ background: "oklch(0.45 0.12 295)" }}
+              />
               {item.name}
             </span>
           ))}
@@ -423,7 +655,7 @@ function ClientsTicker() {
   );
 }
 
-// ─── Services ─────────────────────────────────────────────────────────────────
+// ─── Services ──────────────────────────────────────────────────────────────────────────────────
 
 const SERVICES = [
   {
@@ -512,10 +744,10 @@ function Services() {
             <Reveal key={s.title} delay={i * 0.06} className="h-full">
               <div
                 data-ocid={`services.item.${i + 1}`}
-                className="glass-card rounded-2xl p-6 h-full flex flex-col group cursor-default"
+                className="glass-card service-card rounded-2xl p-6 h-full flex flex-col group cursor-default"
               >
                 <div
-                  className="w-12 h-12 rounded-xl flex items-center justify-center mb-5 transition-transform duration-300 group-hover:scale-110"
+                  className="w-12 h-12 rounded-xl flex items-center justify-center mb-5 transition-all duration-300 group-hover:scale-110 group-hover:rotate-3"
                   style={{
                     background: `${s.color}20`,
                     border: `1px solid ${s.color}40`,
@@ -530,8 +762,11 @@ function Services() {
                   {s.description}
                 </p>
                 <div
-                  className="mt-5 flex items-center gap-1 text-xs font-semibold opacity-0 group-hover:opacity-100 transition-opacity duration-300"
-                  style={{ color: s.color }}
+                  className="mt-5 flex items-center gap-1 text-xs font-semibold opacity-0 group-hover:opacity-100 transition-opacity duration-300 group-hover:translate-x-1"
+                  style={{
+                    color: s.color,
+                    transition: "opacity 0.3s ease, transform 0.3s ease",
+                  }}
                 >
                   Learn more <ArrowRight className="w-3 h-3" />
                 </div>
@@ -544,7 +779,7 @@ function Services() {
   );
 }
 
-// ─── Case Studies ─────────────────────────────────────────────────────────────
+// ─── Case Studies ─────────────────────────────────────────────────────────────────────────────
 
 const CASES = [
   {
@@ -675,7 +910,7 @@ function CaseStudies() {
   );
 }
 
-// ─── Stats Counter ────────────────────────────────────────────────────────────
+// ─── Stats Counter ────────────────────────────────────────────────────────────────────────────
 
 const STATS = [
   { value: 50000, label: "Leads Generated", suffix: "+", prefix: "" },
@@ -749,7 +984,7 @@ function Results() {
   );
 }
 
-// ─── Process ──────────────────────────────────────────────────────────────────
+// ─── Process ──────────────────────────────────────────────────────────────────────────────────
 
 const STEPS = [
   {
@@ -901,7 +1136,7 @@ function Process() {
   );
 }
 
-// ─── Testimonials ─────────────────────────────────────────────────────────────
+// ─── Testimonials ─────────────────────────────────────────────────────────────────────────────
 
 const TESTIMONIALS = [
   {
@@ -1065,7 +1300,7 @@ function Testimonials() {
   );
 }
 
-// ─── Pricing ──────────────────────────────────────────────────────────────────
+// ─── Pricing ──────────────────────────────────────────────────────────────────────────────────
 
 const PLANS = [
   {
@@ -1207,15 +1442,17 @@ function Pricing() {
                   ))}
                 </ul>
 
-                <a
-                  href="#contact"
-                  data-ocid={`pricing.item.${i + 1}.primary_button`}
-                  className={`w-full py-3 rounded-xl text-sm font-bold text-center transition-all duration-300 block ${
-                    p.popular ? "btn-neon text-white" : "btn-ghost"
-                  }`}
-                >
-                  <span>{p.cta}</span>
-                </a>
+                <MagneticBtn className="w-full">
+                  <a
+                    href="#contact"
+                    data-ocid={`pricing.item.${i + 1}.primary_button`}
+                    className={`w-full py-3 rounded-xl text-sm font-bold text-center transition-all duration-300 block ${
+                      p.popular ? "btn-neon text-white" : "btn-ghost"
+                    }`}
+                  >
+                    <span>{p.cta}</span>
+                  </a>
+                </MagneticBtn>
               </div>
             </Reveal>
           ))}
@@ -1225,7 +1462,7 @@ function Pricing() {
   );
 }
 
-// ─── Lead Generation CTA ──────────────────────────────────────────────────────
+// ─── Lead Generation CTA ────────────────────────────────────────────────────────────────────────
 
 function LeadForm() {
   const { actor } = useActor();
@@ -1241,10 +1478,19 @@ function LeadForm() {
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (!actor) return;
     setStatus("loading");
     try {
-      await actor.submitLead(form.name, form.email, form.phone, form.business);
+      const message = `New Lead from Website \ud83d\ude80\n\nName: ${form.name}\nEmail: ${form.email}\nPhone: ${form.phone}\nBusiness: ${form.business}\n\n(Sent via website lead form)`;
+      const waUrl = `https://wa.me/917217001969?text=${encodeURIComponent(message)}`;
+      window.open(waUrl, "_blank");
+      if (actor) {
+        await actor.submitLead(
+          form.name,
+          form.email,
+          form.phone,
+          form.business,
+        );
+      }
       setStatus("success");
       setForm({ name: "", email: "", phone: "", business: "" });
     } catch {
@@ -1344,7 +1590,7 @@ function LeadForm() {
                       setForm((f) => ({ ...f, phone: e.target.value }))
                     }
                     required
-                    placeholder="+91 98765 43210"
+                    placeholder="+91 7217001969"
                     className="w-full px-4 py-3 rounded-xl bg-muted border border-border text-foreground placeholder:text-muted-foreground focus:outline-none focus:border-primary focus:ring-1 focus:ring-primary/50 transition-all text-sm"
                   />
                 </div>
@@ -1400,27 +1646,29 @@ function LeadForm() {
                 </div>
               )}
 
-              <button
-                type="submit"
-                data-ocid="lead.submit_button"
-                disabled={status === "loading"}
-                className="btn-neon w-full py-4 rounded-xl text-base font-bold text-white flex items-center justify-center gap-2 disabled:opacity-60 disabled:cursor-not-allowed"
-              >
-                {status === "loading" ? (
-                  <>
-                    <Loader2
-                      className="w-4 h-4 animate-spin"
-                      data-ocid="lead.loading_state"
-                    />
-                    <span>Submitting...</span>
-                  </>
-                ) : (
-                  <>
-                    <span>Get My Free Strategy</span>
-                    <ArrowRight className="w-4 h-4" />
-                  </>
-                )}
-              </button>
+              <MagneticBtn className="w-full">
+                <button
+                  type="submit"
+                  data-ocid="lead.submit_button"
+                  disabled={status === "loading"}
+                  className="btn-neon w-full py-4 rounded-xl text-base font-bold text-white flex items-center justify-center gap-2 disabled:opacity-60 disabled:cursor-not-allowed"
+                >
+                  {status === "loading" ? (
+                    <>
+                      <Loader2
+                        className="w-4 h-4 animate-spin"
+                        data-ocid="lead.loading_state"
+                      />
+                      <span>Submitting...</span>
+                    </>
+                  ) : (
+                    <>
+                      <span>Get My Free Strategy</span>
+                      <ArrowRight className="w-4 h-4" />
+                    </>
+                  )}
+                </button>
+              </MagneticBtn>
             </form>
           </Reveal>
         </div>
@@ -1429,7 +1677,7 @@ function LeadForm() {
   );
 }
 
-// ─── Contact ──────────────────────────────────────────────────────────────────
+// ─── Contact ──────────────────────────────────────────────────────────────────────────────────
 
 function Contact() {
   const { actor } = useActor();
@@ -1442,7 +1690,12 @@ function Contact() {
     e.preventDefault();
     setStatus("loading");
     try {
-      await actor?.submitContact(form.name, form.email, form.message);
+      const msg = `New Contact Form Message \ud83d\udcec\n\nName: ${form.name}\nEmail: ${form.email}\nMessage: ${form.message}\n\n(Sent via website contact form)`;
+      const waUrl = `https://wa.me/917217001969?text=${encodeURIComponent(msg)}`;
+      window.open(waUrl, "_blank");
+      if (actor) {
+        await actor.submitContact(form.name, form.email, form.message);
+      }
       setStatus("success");
       setForm({ name: "", email: "", message: "" });
     } catch {
@@ -1570,27 +1823,29 @@ function Contact() {
                 </div>
               )}
 
-              <button
-                type="submit"
-                data-ocid="contact.submit_button"
-                disabled={status === "loading"}
-                className="btn-neon w-full py-4 rounded-xl text-base font-bold text-white flex items-center justify-center gap-2 disabled:opacity-60"
-              >
-                {status === "loading" ? (
-                  <>
-                    <Loader2
-                      className="w-4 h-4 animate-spin"
-                      data-ocid="contact.loading_state"
-                    />
-                    <span>Sending...</span>
-                  </>
-                ) : (
-                  <>
-                    <span>Send Message</span>
-                    <ArrowRight className="w-4 h-4" />
-                  </>
-                )}
-              </button>
+              <MagneticBtn className="w-full">
+                <button
+                  type="submit"
+                  data-ocid="contact.submit_button"
+                  disabled={status === "loading"}
+                  className="btn-neon w-full py-4 rounded-xl text-base font-bold text-white flex items-center justify-center gap-2 disabled:opacity-60"
+                >
+                  {status === "loading" ? (
+                    <>
+                      <Loader2
+                        className="w-4 h-4 animate-spin"
+                        data-ocid="contact.loading_state"
+                      />
+                      <span>Sending...</span>
+                    </>
+                  ) : (
+                    <>
+                      <span>Send Message</span>
+                      <ArrowRight className="w-4 h-4" />
+                    </>
+                  )}
+                </button>
+              </MagneticBtn>
             </form>
           </Reveal>
 
@@ -1599,40 +1854,74 @@ function Contact() {
             <div className="space-y-6">
               {/* Contact info */}
               <div className="glass-card rounded-2xl p-6 space-y-4">
-                {[
-                  {
-                    icon: Mail,
-                    label: "Email",
-                    value: "info@digitalmarketingmantra.in",
-                  },
-                  { icon: Phone, label: "Phone", value: "+91 98765 43210" },
-                  {
-                    icon: MapPin,
-                    label: "Location",
-                    value: "New Delhi, India",
-                  },
-                ].map((item) => (
-                  <div key={item.label} className="flex items-center gap-4">
-                    <div
-                      className="w-10 h-10 rounded-lg flex items-center justify-center flex-shrink-0"
-                      style={{
-                        background: "oklch(0.65 0.25 262 / 0.12)",
-                        border: "1px solid oklch(0.65 0.25 262 / 0.25)",
-                      }}
-                    >
-                      <item.icon
-                        className="w-4 h-4"
-                        style={{ color: "oklch(0.70 0.22 262)" }}
-                      />
-                    </div>
-                    <div>
-                      <div className="text-xs text-muted-foreground">
-                        {item.label}
-                      </div>
-                      <div className="text-sm font-medium">{item.value}</div>
+                {/* Email */}
+                <div className="flex items-center gap-4">
+                  <div
+                    className="w-10 h-10 rounded-lg flex items-center justify-center flex-shrink-0"
+                    style={{
+                      background: "oklch(0.65 0.25 262 / 0.12)",
+                      border: "1px solid oklch(0.65 0.25 262 / 0.25)",
+                    }}
+                  >
+                    <Mail
+                      className="w-4 h-4"
+                      style={{ color: "oklch(0.70 0.22 262)" }}
+                    />
+                  </div>
+                  <div>
+                    <div className="text-xs text-muted-foreground">Email</div>
+                    <div className="text-sm font-medium">
+                      info@digitalmarketingmantra.in
                     </div>
                   </div>
-                ))}
+                </div>
+                {/* Phone */}
+                <div className="flex items-center gap-4">
+                  <div
+                    className="w-10 h-10 rounded-lg flex items-center justify-center flex-shrink-0"
+                    style={{
+                      background: "oklch(0.65 0.25 262 / 0.12)",
+                      border: "1px solid oklch(0.65 0.25 262 / 0.25)",
+                    }}
+                  >
+                    <Phone
+                      className="w-4 h-4"
+                      style={{ color: "oklch(0.70 0.22 262)" }}
+                    />
+                  </div>
+                  <div>
+                    <div className="text-xs text-muted-foreground">Phone</div>
+                    <div className="text-sm font-medium">
+                      <a
+                        href="tel:+917217001969"
+                        className="hover:text-primary transition-colors"
+                      >
+                        +91 7217001969
+                      </a>
+                    </div>
+                  </div>
+                </div>
+                {/* Location */}
+                <div className="flex items-center gap-4">
+                  <div
+                    className="w-10 h-10 rounded-lg flex items-center justify-center flex-shrink-0"
+                    style={{
+                      background: "oklch(0.65 0.25 262 / 0.12)",
+                      border: "1px solid oklch(0.65 0.25 262 / 0.25)",
+                    }}
+                  >
+                    <MapPin
+                      className="w-4 h-4"
+                      style={{ color: "oklch(0.70 0.22 262)" }}
+                    />
+                  </div>
+                  <div>
+                    <div className="text-xs text-muted-foreground">
+                      Location
+                    </div>
+                    <div className="text-sm font-medium">New Delhi, India</div>
+                  </div>
+                </div>
               </div>
 
               {/* Map */}
@@ -1657,7 +1946,7 @@ function Contact() {
   );
 }
 
-// ─── Footer ───────────────────────────────────────────────────────────────────
+// ─── Footer ──────────────────────────────────────────────────────────────────────────────────
 
 function Footer() {
   const year = new Date().getFullYear();
@@ -1773,14 +2062,14 @@ function Footer() {
   );
 }
 
-// ─── Floating Elements ────────────────────────────────────────────────────────
+// ─── Floating Elements ────────────────────────────────────────────────────────────────────────
 
 function FloatingElements() {
   return (
     <>
       {/* WhatsApp */}
       <a
-        href="https://wa.me/919876543210"
+        href="https://wa.me/917217001969"
         target="_blank"
         rel="noopener noreferrer"
         data-ocid="whatsapp.button"
@@ -1804,11 +2093,12 @@ function FloatingElements() {
   );
 }
 
-// ─── App ──────────────────────────────────────────────────────────────────────
+// ─── App ──────────────────────────────────────────────────────────────────────────────────
 
 export default function App() {
   return (
     <div className="min-h-screen font-body">
+      <CustomCursor />
       <Navbar />
       <main>
         <Hero />
