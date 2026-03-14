@@ -284,56 +284,6 @@
   animation: shimmer 3s linear infinite;
 }
 
-/* ─── Custom Cursor ─── */
-
-.custom-cursor-dot {
-  position: fixed;
-  pointer-events: none;
-  z-index: 99999;
-  width: 8px;
-  height: 8px;
-  border-radius: 50%;
-  background: oklch(0.75 0.22 262);
-  transform: translate(-50%, -50%);
-  transition: transform 0.08s ease, width 0.2s ease, height 0.2s ease, background 0.2s ease;
-  will-change: transform, left, top;
-  mix-blend-mode: screen;
-}
-
-.custom-cursor-ring {
-  position: fixed;
-  pointer-events: none;
-  z-index: 99998;
-  width: 40px;
-  height: 40px;
-  border-radius: 50%;
-  border: 1.5px solid oklch(0.65 0.25 262 / 0.6);
-  transform: translate(-50%, -50%);
-  transition: left 0.12s cubic-bezier(0.25, 0.46, 0.45, 0.94),
-              top 0.12s cubic-bezier(0.25, 0.46, 0.45, 0.94),
-              width 0.25s ease, height 0.25s ease,
-              border-color 0.25s ease, opacity 0.25s ease;
-  will-change: left, top;
-}
-
-.custom-cursor-ring.is-hovering {
-  width: 60px;
-  height: 60px;
-  border-color: oklch(0.75 0.22 262 / 0.8);
-  background: oklch(0.65 0.25 262 / 0.06);
-}
-
-@media (max-width: 768px) {
-  .custom-cursor-dot,
-  .custom-cursor-ring {
-    display: none;
-  }
-
-  body, a, button, input, textarea, select, [role="button"] {
-    cursor: auto;
-  }
-}
-
 /* ─── Split Text Hero ─── */
 
 .word-reveal {

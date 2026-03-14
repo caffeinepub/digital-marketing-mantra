@@ -27,68 +27,6 @@ import { SiFacebook, SiInstagram, SiLinkedin, SiX } from "react-icons/si";
 import { useActor } from "./hooks/useActor";
 import { useCountUp, useInView } from "./hooks/useInView";
 
-// ─── Custom Cursor ──────────────────────────────────────────────────────────────────────────────────
-
-function CustomCursor() {
-  const dotRef = useRef<HTMLDivElement>(null);
-  const ringRef = useRef<HTMLDivElement>(null);
-  const pos = useRef({ x: -100, y: -100 });
-  const ringPos = useRef({ x: -100, y: -100 });
-  const rafRef = useRef<number>(0);
-
-  useEffect(() => {
-    const onMove = (e: MouseEvent) => {
-      pos.current = { x: e.clientX, y: e.clientY };
-      if (dotRef.current) {
-        dotRef.current.style.left = `${e.clientX}px`;
-        dotRef.current.style.top = `${e.clientY}px`;
-      }
-    };
-
-    const animate = () => {
-      ringPos.current.x += (pos.current.x - ringPos.current.x) * 0.12;
-      ringPos.current.y += (pos.current.y - ringPos.current.y) * 0.12;
-      if (ringRef.current) {
-        ringRef.current.style.left = `${ringPos.current.x}px`;
-        ringRef.current.style.top = `${ringPos.current.y}px`;
-      }
-      rafRef.current = requestAnimationFrame(animate);
-    };
-
-    const onEnter = (e: MouseEvent) => {
-      const t = e.target as HTMLElement;
-      if (
-        t.closest("a, button, [role='button'], input, textarea, select, label")
-      ) {
-        ringRef.current?.classList.add("is-hovering");
-      }
-    };
-
-    const onLeave = () => {
-      ringRef.current?.classList.remove("is-hovering");
-    };
-
-    window.addEventListener("mousemove", onMove, { passive: true });
-    document.addEventListener("mouseover", onEnter);
-    document.addEventListener("mouseout", onLeave);
-    rafRef.current = requestAnimationFrame(animate);
-
-    return () => {
-      window.removeEventListener("mousemove", onMove);
-      document.removeEventListener("mouseover", onEnter);
-      document.removeEventListener("mouseout", onLeave);
-      cancelAnimationFrame(rafRef.current);
-    };
-  }, []);
-
-  return (
-    <>
-      <div ref={dotRef} className="custom-cursor-dot" />
-      <div ref={ringRef} className="custom-cursor-ring" />
-    </>
-  );
-}
-
 // ─── Magnetic Button ───────────────────────────────────────────────────────────────────────────
 
 function MagneticBtn({
@@ -710,6 +648,34 @@ const SERVICES = [
 ];
 
 function Services() {
+  const [selectedService, setSelectedService] = useState<
+    (typeof SERVICES)[0] | null
+  >(null);
+  const [formName, setFormName] = useState("");
+  const [formPhone, setFormPhone] = useState("");
+  const [formMessage, setFormMessage] = useState("");
+  const [formSubmitted, setFormSubmitted] = useState(false);
+
+  const openServiceModal = (service: (typeof SERVICES)[0]) => {
+    setSelectedService(service);
+    setFormName("");
+    setFormPhone("");
+    setFormMessage(`I'm interested in ${service.title} services.`);
+    setFormSubmitted(false);
+  };
+
+  const handleFormSubmit = (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!selectedService) return;
+    const msg = `Hi, I'm ${formName}. My phone: ${formPhone}. I'm interested in ${selectedService.title} services.`;
+    window.open(
+      `https://wa.me/917217001969?text=${encodeURIComponent(msg)}`,
+      "_blank",
+    );
+    setFormSubmitted(true);
+    setTimeout(() => setSelectedService(null), 1800);
+  };
+
   return (
     <section
       id="services"
@@ -761,20 +727,256 @@ function Services() {
                 <p className="text-muted-foreground text-sm leading-relaxed flex-1">
                   {s.description}
                 </p>
-                <div
-                  className="mt-5 flex items-center gap-1 text-xs font-semibold opacity-0 group-hover:opacity-100 transition-opacity duration-300 group-hover:translate-x-1"
+                <button
+                  data-ocid={`services.item.${i + 1}.open_modal_button`}
+                  type="button"
+                  onClick={() => openServiceModal(s)}
+                  className="mt-5 flex items-center gap-1 text-xs font-semibold opacity-70 group-hover:opacity-100 transition-all duration-300 group-hover:translate-x-1 cursor-pointer bg-transparent border-none p-0"
                   style={{
                     color: s.color,
                     transition: "opacity 0.3s ease, transform 0.3s ease",
                   }}
                 >
                   Learn more <ArrowRight className="w-3 h-3" />
-                </div>
+                </button>
               </div>
             </Reveal>
           ))}
         </div>
       </div>
+
+      {/* Contact Form Modal */}
+      {selectedService && (
+        <dialog
+          open
+          className="fixed inset-0 z-50 flex items-center justify-center p-4 m-0 max-w-none max-h-none w-full h-full bg-transparent border-none"
+          style={{
+            backdropFilter: "blur(8px)",
+            background: "rgba(0,0,0,0.75)",
+          }}
+          onClick={() => setSelectedService(null)}
+          onKeyDown={(e) => e.key === "Escape" && setSelectedService(null)}
+          data-ocid="services.contact_modal.dialog"
+        >
+          <div
+            className="relative w-full max-w-md rounded-2xl p-7 shadow-2xl"
+            style={{
+              background: "oklch(0.11 0.02 265 / 0.97)",
+              border: `1px solid ${selectedService.color}40`,
+              boxShadow: `0 0 60px ${selectedService.color}20, 0 25px 50px rgba(0,0,0,0.6)`,
+              animation: "modalIn 0.28s cubic-bezier(0.34,1.56,0.64,1) both",
+            }}
+            onClick={(e) => e.stopPropagation()}
+            onKeyDown={(e) => e.stopPropagation()}
+          >
+            <button
+              data-ocid="services.contact_modal.close_button"
+              type="button"
+              onClick={() => setSelectedService(null)}
+              className="absolute top-4 right-4 w-8 h-8 rounded-full flex items-center justify-center transition-all duration-200 hover:scale-110"
+              style={{
+                background: "oklch(0.20 0.02 265)",
+                color: "oklch(0.75 0.05 265)",
+              }}
+            >
+              <X className="w-4 h-4" />
+            </button>
+            <div className="flex items-center gap-3 mb-5">
+              <div
+                className="w-12 h-12 rounded-xl flex items-center justify-center shrink-0"
+                style={{
+                  background: `${selectedService.color}20`,
+                  border: `1px solid ${selectedService.color}50`,
+                }}
+              >
+                <selectedService.icon
+                  className="w-6 h-6"
+                  style={{ color: selectedService.color }}
+                />
+              </div>
+              <div>
+                <p
+                  className="text-xs font-semibold uppercase tracking-widest"
+                  style={{ color: selectedService.color }}
+                >
+                  {selectedService.title}
+                </p>
+                <h3 className="font-display font-black text-lg text-white leading-tight">
+                  Get a Free Consultation
+                </h3>
+              </div>
+            </div>
+            {formSubmitted ? (
+              <div className="flex flex-col items-center justify-center py-8 gap-3">
+                <div
+                  className="w-14 h-14 rounded-full flex items-center justify-center mb-2"
+                  style={{
+                    background: "oklch(0.55 0.20 160 / 0.2)",
+                    border: "1px solid oklch(0.55 0.20 160 / 0.5)",
+                  }}
+                >
+                  <svg
+                    width="28"
+                    height="28"
+                    viewBox="0 0 24 24"
+                    fill="none"
+                    stroke="oklch(0.72 0.18 160)"
+                    strokeWidth="2.5"
+                    strokeLinecap="round"
+                    strokeLinejoin="round"
+                    role="img"
+                    aria-label="Success"
+                  >
+                    <title>Success</title>
+                    <polyline points="20 6 9 17 4 12" />
+                  </svg>
+                </div>
+                <p className="font-display font-bold text-lg text-white">
+                  Opening WhatsApp…
+                </p>
+                <p
+                  className="text-sm text-center"
+                  style={{ color: "oklch(0.60 0.04 265)" }}
+                >
+                  {"We'll be in touch shortly!"}
+                </p>
+              </div>
+            ) : (
+              <form onSubmit={handleFormSubmit} className="flex flex-col gap-4">
+                <div className="flex flex-col gap-1.5">
+                  <label
+                    htmlFor="contact-name"
+                    className="text-xs font-semibold uppercase tracking-wider"
+                    style={{ color: "oklch(0.65 0.05 265)" }}
+                  >
+                    Your Name
+                  </label>
+                  <input
+                    id="contact-name"
+                    data-ocid="services.contact_modal.name_input"
+                    type="text"
+                    required
+                    value={formName}
+                    onChange={(e) => setFormName(e.target.value)}
+                    placeholder="John Doe"
+                    className="w-full px-4 py-2.5 rounded-xl text-sm outline-none transition-all duration-200"
+                    style={{
+                      background: "oklch(0.17 0.02 265)",
+                      border: "1px solid oklch(0.28 0.04 265)",
+                      color: "oklch(0.90 0.02 265)",
+                    }}
+                    onFocus={(e) => {
+                      e.target.style.borderColor = selectedService.color;
+                      e.target.style.boxShadow = `0 0 0 2px ${selectedService.color}30`;
+                    }}
+                    onBlur={(e) => {
+                      e.target.style.borderColor = "oklch(0.28 0.04 265)";
+                      e.target.style.boxShadow = "none";
+                    }}
+                  />
+                </div>
+                <div className="flex flex-col gap-1.5">
+                  <label
+                    htmlFor="contact-phone"
+                    className="text-xs font-semibold uppercase tracking-wider"
+                    style={{ color: "oklch(0.65 0.05 265)" }}
+                  >
+                    Phone Number
+                  </label>
+                  <input
+                    id="contact-phone"
+                    data-ocid="services.contact_modal.phone_input"
+                    type="tel"
+                    required
+                    value={formPhone}
+                    onChange={(e) => setFormPhone(e.target.value)}
+                    placeholder="+91 98765 43210"
+                    className="w-full px-4 py-2.5 rounded-xl text-sm outline-none transition-all duration-200"
+                    style={{
+                      background: "oklch(0.17 0.02 265)",
+                      border: "1px solid oklch(0.28 0.04 265)",
+                      color: "oklch(0.90 0.02 265)",
+                    }}
+                    onFocus={(e) => {
+                      e.target.style.borderColor = selectedService.color;
+                      e.target.style.boxShadow = `0 0 0 2px ${selectedService.color}30`;
+                    }}
+                    onBlur={(e) => {
+                      e.target.style.borderColor = "oklch(0.28 0.04 265)";
+                      e.target.style.boxShadow = "none";
+                    }}
+                  />
+                </div>
+                <div className="flex flex-col gap-1.5">
+                  <label
+                    htmlFor="contact-message"
+                    className="text-xs font-semibold uppercase tracking-wider"
+                    style={{ color: "oklch(0.65 0.05 265)" }}
+                  >
+                    Message
+                  </label>
+                  <textarea
+                    id="contact-message"
+                    data-ocid="services.contact_modal.message_textarea"
+                    rows={3}
+                    value={formMessage}
+                    onChange={(e) => setFormMessage(e.target.value)}
+                    className="w-full px-4 py-2.5 rounded-xl text-sm resize-none outline-none transition-all duration-200"
+                    style={{
+                      background: "oklch(0.17 0.02 265)",
+                      border: "1px solid oklch(0.28 0.04 265)",
+                      color: "oklch(0.90 0.02 265)",
+                    }}
+                    onFocus={(e) => {
+                      e.target.style.borderColor = selectedService.color;
+                      e.target.style.boxShadow = `0 0 0 2px ${selectedService.color}30`;
+                    }}
+                    onBlur={(e) => {
+                      e.target.style.borderColor = "oklch(0.28 0.04 265)";
+                      e.target.style.boxShadow = "none";
+                    }}
+                  />
+                </div>
+                <button
+                  data-ocid="services.contact_modal.submit_button"
+                  type="submit"
+                  className="w-full py-3 rounded-xl font-bold text-white text-sm tracking-wide transition-all duration-200 hover:scale-[1.02] active:scale-[0.98] flex items-center justify-center gap-2"
+                  style={{
+                    background: `linear-gradient(135deg, ${selectedService.color}, oklch(0.50 0.22 262))`,
+                    boxShadow: `0 4px 20px ${selectedService.color}40`,
+                  }}
+                >
+                  <svg
+                    width="18"
+                    height="18"
+                    viewBox="0 0 24 24"
+                    fill="white"
+                    xmlns="http://www.w3.org/2000/svg"
+                    role="img"
+                    aria-label="WhatsApp"
+                  >
+                    <title>WhatsApp</title>
+                    <path d="M17.472 14.382c-.297-.149-1.758-.867-2.03-.967-.273-.099-.471-.148-.67.15-.197.297-.767.966-.94 1.164-.173.199-.347.223-.644.075-.297-.15-1.255-.463-2.39-1.475-.883-.788-1.48-1.761-1.653-2.059-.173-.297-.018-.458.13-.606.134-.133.298-.347.446-.52.149-.174.198-.298.298-.497.099-.198.05-.371-.025-.52-.075-.149-.669-1.612-.916-2.207-.242-.579-.487-.5-.669-.51-.173-.008-.371-.01-.57-.01-.198 0-.52.074-.792.372-.272.297-1.04 1.016-1.04 2.479 0 1.462 1.065 2.875 1.213 3.074.149.198 2.096 3.2 5.077 4.487.709.306 1.262.489 1.694.625.712.227 1.36.195 1.871.118.571-.085 1.758-.719 2.006-1.413.248-.694.248-1.289.173-1.413-.074-.124-.272-.198-.57-.347m-5.421 7.403h-.004a9.87 9.87 0 01-5.031-1.378l-.361-.214-3.741.982.998-3.648-.235-.374a9.86 9.86 0 01-1.51-5.26c.001-5.45 4.436-9.884 9.888-9.884 2.64 0 5.122 1.03 6.988 2.898a9.825 9.825 0 012.893 6.994c-.003 5.45-4.437 9.884-9.885 9.884m8.413-18.297A11.815 11.815 0 0012.05 0C5.495 0 .16 5.335.157 11.892c0 2.096.547 4.142 1.588 5.945L.057 24l6.305-1.654a11.882 11.882 0 005.683 1.448h.005c6.554 0 11.89-5.335 11.893-11.893a11.821 11.821 0 00-3.48-8.413z" />
+                  </svg>
+                  Send via WhatsApp
+                </button>
+                <p
+                  className="text-center text-xs"
+                  style={{ color: "oklch(0.45 0.04 265)" }}
+                >
+                  We typically respond within minutes
+                </p>
+              </form>
+            )}
+          </div>
+        </dialog>
+      )}
+      <style>{`
+        @keyframes modalIn {
+          from { opacity: 0; transform: scale(0.85) translateY(20px); }
+          to   { opacity: 1; transform: scale(1) translateY(0); }
+        }
+      `}</style>
     </section>
   );
 }
@@ -1479,22 +1681,20 @@ function LeadForm() {
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     setStatus("loading");
-    try {
-      const message = `New Lead from Website \ud83d\ude80\n\nName: ${form.name}\nEmail: ${form.email}\nPhone: ${form.phone}\nBusiness: ${form.business}\n\n(Sent via website lead form)`;
-      const waUrl = `https://wa.me/917217001969?text=${encodeURIComponent(message)}`;
-      window.open(waUrl, "_blank");
-      if (actor) {
+    const message = `New Lead from Website \ud83d\ude80\n\nName: ${form.name}\nEmail: ${form.email}\nPhone: ${form.phone}\nBusiness: ${form.business}\n\n(Sent via website lead form)`;
+    const waUrl = `https://wa.me/917217001969?text=${encodeURIComponent(message)}`;
+    window.open(waUrl, "_blank");
+    setStatus("success");
+    setForm({ name: "", email: "", phone: "", business: "" });
+    if (actor) {
+      try {
         await actor.submitLead(
           form.name,
           form.email,
           form.phone,
           form.business,
         );
-      }
-      setStatus("success");
-      setForm({ name: "", email: "", phone: "", business: "" });
-    } catch {
-      setStatus("error");
+      } catch {}
     }
   };
 
@@ -1689,17 +1889,15 @@ function Contact() {
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     setStatus("loading");
-    try {
-      const msg = `New Contact Form Message \ud83d\udcec\n\nName: ${form.name}\nEmail: ${form.email}\nMessage: ${form.message}\n\n(Sent via website contact form)`;
-      const waUrl = `https://wa.me/917217001969?text=${encodeURIComponent(msg)}`;
-      window.open(waUrl, "_blank");
-      if (actor) {
+    const msg = `New Contact Form Message \ud83d\udcec\n\nName: ${form.name}\nEmail: ${form.email}\nMessage: ${form.message}\n\n(Sent via website contact form)`;
+    const waUrl = `https://wa.me/917217001969?text=${encodeURIComponent(msg)}`;
+    window.open(waUrl, "_blank");
+    setStatus("success");
+    setForm({ name: "", email: "", message: "" });
+    if (actor) {
+      try {
         await actor.submitContact(form.name, form.email, form.message);
-      }
-      setStatus("success");
-      setForm({ name: "", email: "", message: "" });
-    } catch {
-      setStatus("error");
+      } catch {}
     }
   };
 
@@ -2059,6 +2257,70 @@ function Footer() {
         </div>
       </div>
     </footer>
+  );
+}
+
+// ─── Custom Cursor ────────────────────────────────────────────────────────────────────────────
+
+function CustomCursor() {
+  const dotRef = useRef<HTMLDivElement>(null);
+  const glowRef = useRef<HTMLDivElement>(null);
+
+  useEffect(() => {
+    let dotX = 0;
+    let dotY = 0;
+    let glowX = 0;
+    let glowY = 0;
+    let raf: number;
+
+    const onMove = (e: MouseEvent) => {
+      dotX = e.clientX;
+      dotY = e.clientY;
+    };
+    window.addEventListener("mousemove", onMove, { passive: true });
+
+    const animate = () => {
+      glowX += (dotX - glowX) * 0.12;
+      glowY += (dotY - glowY) * 0.12;
+      if (dotRef.current) {
+        dotRef.current.style.transform = `translate(${dotX - 5}px, ${dotY - 5}px)`;
+      }
+      if (glowRef.current) {
+        glowRef.current.style.transform = `translate(${glowX - 20}px, ${glowY - 20}px)`;
+      }
+      raf = requestAnimationFrame(animate);
+    };
+    raf = requestAnimationFrame(animate);
+
+    return () => {
+      window.removeEventListener("mousemove", onMove);
+      cancelAnimationFrame(raf);
+    };
+  }, []);
+
+  return (
+    <>
+      <div
+        ref={dotRef}
+        className="cursor-dot pointer-events-none fixed top-0 left-0 z-[9999] w-2.5 h-2.5 rounded-full"
+        style={{
+          background: "oklch(0.75 0.25 262)",
+          boxShadow: "0 0 8px 2px oklch(0.65 0.25 262 / 0.8)",
+          willChange: "transform",
+        }}
+        aria-hidden="true"
+      />
+      <div
+        ref={glowRef}
+        className="cursor-glow pointer-events-none fixed top-0 left-0 z-[9998] w-10 h-10 rounded-full"
+        style={{
+          background:
+            "radial-gradient(circle, oklch(0.65 0.25 262 / 0.25) 0%, transparent 70%)",
+          willChange: "transform",
+        }}
+        aria-hidden="true"
+      />
+    </>
   );
 }
 
